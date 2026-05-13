@@ -1,0 +1,46 @@
+services:
+
+  aria_back:
+    build: ./aria_back
+    container_name: aria_back
+    ports:
+      - "8001:8001"
+    env_file: ./aria_back/.env
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  aria_middle:
+    build: ./aria_middle
+    container_name: aria_middle
+    ports:
+      - "8000:8000"
+    env_file: ./aria_middle/.env
+    environment:
+      - VLLM_BASE_URL=http://aria_back:8001/v1
+      - URL_BACK_LLM=http://aria_back:8001
+    volumes:
+      - ./aria_middle/data:/app/data
+      - ./aria_middle/pose_landmarker_full.task:/app/pose_landmarker_full.task:ro
+    depends_on:
+      - aria_back
+    restart: unless-stopped
+
+  aria_front:
+    build: ./aria_front
+    container_name: aria_front
+    ports:
+      - "3000:80"
+    depends_on:
+      - aria_middle
+    restart: unless-stopped
+
+volumes:
+  hf_cache:
