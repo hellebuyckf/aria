@@ -4,3 +4,6 @@
 [submodule "aria_back"]
 	path = aria_back
 	url = git@github.com:hellebuyckf/aria_back.git
+[submodule "aria_front"]
+	path = aria_front
+	url = git@github.com:hellebuyckf/aria_front.git
