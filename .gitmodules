@@ -1,3 +1,6 @@
 [submodule "aria_middle"]
 	path = aria_middle
 	url = git@github.com:hellebuyckf/aria_middle.git
+[submodule "aria_back"]
+	path = aria_back
+	url = git@github.com:hellebuyckf/aria_back.git
