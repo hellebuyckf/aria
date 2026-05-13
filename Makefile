@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help build up down restart logs ps health update \
+.PHONY: help build up down restart logs ps health init update \
         up-back up-middle up-front \
         logs-back logs-middle logs-front
 
@@ -19,6 +19,7 @@ help:
 	@echo "    make ps         État des containers"
 	@echo "    make health     Vérifier la santé des 3 services"
 	@echo "    make logs       Logs de tous les services (live)"
+	@echo "    make init       Initialiser et cloner les submodules (premier clone)"
 	@echo "    make update     Pull git + mise à jour des submodules"
 	@echo ""
 	@echo "  Services individuels"
@@ -84,6 +85,9 @@ health: ## Vérifier la santé des 3 services
 		&& echo " ✓ ok" || echo " ✗ non joignable"
 
 # ── Mise à jour ───────────────────────────────────────────────────────────────
+init: ## Initialiser et cloner les submodules (premier clone)
+	git submodule update --init --recursive
+
 update: ## Pull git + mise à jour des submodules
 	git pull
-	git submodule update --remote --merge
+	git submodule update --init --remote --merge
