@@ -17,10 +17,9 @@ ARIA répond à ce besoin en proposant un système intelligent installé en cabi
 
 **ARIA** (Analyse et Retour Intelligent sur l'Allure) est un système multi-agents de rééducation biomécanique déployé en cabinet médical. Il combine vision par ordinateur, analyse biomécanique automatisée et génération de protocoles cliniques par un LLM spécialisé.
 
-Le système est développé dans le cadre d'un PFE sous forme de **MVP (Minimum Viable Product)**, avec une architecture split entre deux machines :
+Le système est développé dans le cadre d'un PFE sous forme de **MVP (Minimum Viable Product)**, avec une architecture mono-serveur :
 
-- **Mac M3** : orchestration des agents (LangGraph), interface utilisateur
-- **PC RTX 4060 Ti** : inférence LLM (vLLM), fine-tuning SFT + DPO
+- **alpha-server (Linux)** : tous les composants — orchestration LangGraph, interface utilisateur, inférence LLM via vLLM, fine-tuning SFT + DPO
 
 ARIA ne remplace pas le professionnel de santé. Il lui fournit un outil d'aide à la décision objectif, reproductible et ancré dans la littérature médicale récente.
 
@@ -33,8 +32,8 @@ ARIA ne remplace pas le professionnel de santé. Il lui fournit un outil d'aide 
 **Objectifs secondaires** :
 
 - Construire un dataset clinique synthétique (SFT + DPO) couvrant les principales pathologies du coureur, validé par la littérature médicale de référence (PubMed, guidelines ACSM).
-- Fine-tuner MedGemma 1.5 4B-it (Google DeepMind, janvier 2026 — pré-entraîné sur données médicales, EHRQA +22 pts vs version précédente) avec QLoRA (SFT) puis aligner avec DPO pour spécialiser le modèle sur la génération de protocoles de rééducation biomécanique en français clinique. Le modèle est servi en inférence via vLLM ≥ 0.19 sur le PC RTX 4060 Ti.
-- Ingérer et traiter la vidéo sagittale d'un coureur sur tapis pour extraire des métriques biomécaniques fiables (YOLO26 Pose + ByteTrack).
+- Fine-tuner MedGemma 1.5 4B-it (Google DeepMind, janvier 2026 — pré-entraîné sur données médicales, EHRQA +22 pts vs version précédente) avec QLoRA (SFT) puis aligner avec DPO pour spécialiser le modèle sur la génération de protocoles de rééducation biomécanique en français clinique. Le modèle est servi en inférence via vLLM ≥ 0.19 sur alpha-server.
+- Ingérer et traiter la vidéo sagittale d'un coureur sur tapis pour extraire des métriques biomécaniques fiables (MediaPipe Pose — BlazePose GHUM, 33 keypoints, tracking temporel natif).
 - Implémenter un pipeline RAG (ChromaDB + sentence-transformers) pour la recherche sémantique dans un corpus de 300 à 600 abstracts PubMed indexés localement, enrichissant le contexte de ARIA-ft avec les articles les plus pertinents pour la combinaison pathologie + anomalies biomécaniques du patient.
 - Croiser les anomalies détectées avec le profil de chaussure du patient via web grounding temps réel (Tavily / RunRepeat).
 - Intégrer optionnellement les données d'entraînement du coureur (Strava / Garmin) pour contextualiser l'analyse.
@@ -110,10 +109,10 @@ ARIA croise le profil de chaussure du patient (récupéré en temps réel via we
 
 | Couche                 | Rôle                                                                                  | Technologies                                                                                            |
 | ---------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Couche 0 — Fine-tuning | Construction dataset + SFT + DPO                                                      | MedGemma 4B-it, QLoRA, LoRA, TRL, RTX 4060 Ti                                                           |
-| Couche 1 — Ingestion   | Traitement vidéo sagittale, extraction clips                                          | YOLO26 Pose, ByteTrack, OpenCV, Python                                                                  |
-| Couche 2 — Analyse     | Extraction métriques biomécaniques                                                    | YOLO26 keypoints, calculs angulaires                                                                    |
-| Couche 3 — Agents      | Orchestration, RAG médical, web grounding, raisonnement                               | LangGraph (Mac M3), vLLM (RTX 4060 Ti), ChromaDB, sentence-transformers, Tavily, PubMed API, Strava API |
+| Couche 0 — Fine-tuning | Construction dataset + SFT + DPO                                                      | MedGemma 4B-it, QLoRA, LoRA, TRL, alpha-server                                                          |
+| Couche 1 — Ingestion   | Traitement vidéo sagittale, extraction frames, floutage RGPD                          | MediaPipe Pose (BlazePose GHUM, 33 keypoints), OpenCV, Python                                           |
+| Couche 2 — Analyse     | Extraction métriques biomécaniques                                                    | MediaPipe landmarks (33 points BlazePose, tracking temporel natif), calculs angulaires                  |
+| Couche 3 — Agents      | Orchestration, RAG médical, web grounding, raisonnement                               | LangGraph (alpha-server), vLLM (alpha-server), ChromaDB, sentence-transformers, Tavily, PubMed API, Strava API |
 | Couche 4 — Outputs     | Interface praticien SPA, rapport Markdown généré par le LLM, export PDF patient       | Vue.js 3 + Vite (frontend SPA), FastAPI (backend REST + WebSocket), WeasyPrint (rendu PDF), Markdown   |
 
 ---
@@ -124,7 +123,7 @@ ARIA croise le profil de chaussure du patient (récupéré en temps réel via we
 
 **Contraintes dataset** : en l'absence de partenariat clinique, le dataset SFT + DPO est construit de façon synthétique et validé par la littérature médicale de référence (PubMed, guidelines ACSM, études biomécaniques publiées). Cette limitation est explicitement reconnue et constitue la principale perspective d'évolution du système.
 
-**Contraintes matérielles** : le système s'appuie sur deux machines personnelles (Mac M3 + PC RTX 4060 Ti). Aucune infrastructure cloud n'est utilisée.
+**Contraintes matérielles** : le système s'appuie sur un unique serveur personnel (alpha-server, Linux). Aucune infrastructure cloud n'est utilisée.
 
 **Contraintes temporelles** : le projet est réalisé dans le cadre d'un PFE. Le livrable est un prototype fonctionnel, non un produit certifié.
 
