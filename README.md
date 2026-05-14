@@ -1,8 +1,8 @@
 # ARIA — Analyse et Retour Intelligent sur l'Allure
 
-Système multi-agents de rééducation biomécanique pour la course à pied. ARIA analyse la foulée d'un coureur blessé sur tapis de course (caméra sagittale fixe), corrèle les anomalies détectées à la pathologie déclarée, et génère un protocole de rééducation personnalisé via un LLM fine-tuné sur données cliniques.
+Système multi-agents de rééducation biomécanique pour la course à pied. ARIA analyse la foulée d'un coureur blessé sur tapis de course (caméras sagittale et postérieure), corrèle les anomalies détectées à la pathologie déclarée, et génère un protocole de rééducation personnalisé via un LLM fine-tuné sur données cliniques. → [Spécifications générales](ARIA_specs_generales.md) · [Rapport de conduite de projet](ARIA_rapport_conduite_projet.md)
 
-> MVP v2.0 — PFE IA & Santé 2025-2026
+> PFE IA & Santé 2025-2026
 
 ---
 
@@ -24,7 +24,6 @@ Vidéo sagittale tapis
        └─ Métriques biomécaniques JSON
             └─ LangGraph (video_agent → rag_agent → report_agent)
                  ├─ RAG ChromaDB (300–600 abstracts PubMed)
-                 ├─ Web grounding Tavily / PubMed API
                  └─ ARIA-ft (vLLM) → rapport Markdown → PDF WeasyPrint
 ```
 
@@ -62,11 +61,12 @@ aria/
 ├── aria_back/          ← vLLM + modèle ARIA-ft (submodule)
 ├── aria_middle/        ← FastAPI + LangGraph + MediaPipe (submodule)
 ├── aria_front/         ← Vue.js 3 + Vite (submodule)
-├── docker-compose.yml  ← Orchestration des 3 services
-├── Makefile            ← Commandes de gestion de la stack
-└── ARIA_specs_generales.md
+├── docker-compose.yml              ← Orchestration des 3 services
+├── Makefile                        ← Commandes de gestion de la stack
+├── ARIA_specs_generales.md         ← Spécifications fonctionnelles et techniques
+└── ARIA_rapport_conduite_projet.md ← Rapport de conduite de projet (PFE)
 ```
 
 ---
 
-*ARIA MVP v2.0 — Cabinet médical / Tapis de course / Plan sagittal — Avril 2026*
+*ARIA MVP — Cabinet médical / Tapis de course / Plans sagittal + postérieur — Avril 2026*
