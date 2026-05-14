@@ -83,7 +83,7 @@ Exemple : Le cabinet opère en mode mono-praticien (MVP), avec une volumétrie d
 
 ### 2.1 Solution Proposée — Architecture Actuelle
 
-En l'absence de solution préexistante dans le cabinet, ARIA constitue une solution conçue from scratch. L'architecture retenue repose sur une séparation stricte en trois couches indépendantes, distribuées sur deux machines physiques.
+En l'absence de solution préexistante dans le cabinet, ARIA constitue une solution conçue from scratch. L'architecture retenue repose sur une séparation stricte en trois couches indépendantes.
 
 #### Flux Principal
 
