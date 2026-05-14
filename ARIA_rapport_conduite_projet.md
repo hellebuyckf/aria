@@ -4,7 +4,7 @@
 **Formation :** AI Engineer — PFE 2025-2026  
 **Projet :** ARIA — Système multi-agents biomécanique  
 **Date :** Mai 2026  
-**Version :** MVP v2.0  
+**Version :** MVP  
 **Contact :** pro.fhellebuyck@pm.me
 
 ---
