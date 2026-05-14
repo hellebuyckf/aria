@@ -1,5 +1,6 @@
 # ARIA — Analyse et Retour Intelligent sur l'Allure
-## Spécifications Générales — MVP v2.0
+
+## Spécifications Générales — MVP
 
 ---
 
@@ -35,8 +36,6 @@ ARIA ne remplace pas le professionnel de santé. Il lui fournit un outil d'aide 
 - Fine-tuner MedGemma 1.5 4B-it (Google DeepMind, janvier 2026 — pré-entraîné sur données médicales, EHRQA +22 pts vs version précédente) avec QLoRA (SFT) puis aligner avec DPO pour spécialiser le modèle sur la génération de protocoles de rééducation biomécanique en français clinique. Le modèle est servi en inférence via vLLM ≥ 0.19 sur alpha-server.
 - Ingérer et traiter la vidéo sagittale d'un coureur sur tapis pour extraire des métriques biomécaniques fiables (MediaPipe Pose — BlazePose GHUM, 33 keypoints, tracking temporel natif).
 - Implémenter un pipeline RAG (ChromaDB + sentence-transformers) pour la recherche sémantique dans un corpus de 300 à 600 abstracts PubMed indexés localement, enrichissant le contexte de ARIA-ft avec les articles les plus pertinents pour la combinaison pathologie + anomalies biomécaniques du patient.
-- Croiser les anomalies détectées avec le profil de chaussure du patient via web grounding temps réel (Tavily / RunRepeat).
-- Intégrer optionnellement les données d'entraînement du coureur (Strava / Garmin) pour contextualiser l'analyse.
 - Proposer une interface de restitution exploitable directement par le praticien en cabinet.
 
 ---
@@ -45,7 +44,7 @@ ARIA ne remplace pas le professionnel de santé. Il lui fournit un outil d'aide 
 
 ### Ce que le projet couvre
 
-- Analyse biomécanique de la foulée sur tapis de course en cabinet médical, plan sagittal uniquement.
+- Analyse biomécanique de la foulée sur tapis de course en cabinet médical, plans sagittal et postérieur.
 - Pathologies du coureur prises en charge (6 pathologies MVP) :
   - Lombalgie (douleur lombaire à l'effort)
   - Tendinite rotulienne (syndrome fémoro-patellaire)
@@ -53,27 +52,24 @@ ARIA ne remplace pas le professionnel de santé. Il lui fournit un outil d'aide 
   - Périostite tibiale (shin splints)
   - Tendinite du tendon d'Achille
   - Fasciite plantaire
-- Métriques biomécaniques extraites (plan sagittal) : cadence, attaque du pied, angle tibial à l'impact, oscillation verticale, penchée du tronc, longueur de foulée, flexion du genou.
-- Construction d'un dataset SFT (60 paires) + DPO (42 triplets) et fine-tuning de MedGemma 4B-it via QLoRA/LoRA sur RTX 4060 Ti.
-- Web grounding : PubMed API pour les protocoles de rééducation, Tavily/RunRepeat pour les specs chaussures en temps réel.
-- Intégration optionnelle Strava / Garmin (historique d'entraînement, cadence, FC, charge hebdomadaire).
-- Interface praticien : rapport biomécanique + protocole de rééducation + alerte équipement.
+- Métriques biomécaniques extraites :
+  - Vue sagittale : cadence, attaque du pied, angle tibial à l'impact, oscillation verticale, inclinaison du tronc, ratio contact/suspension, flexion du genou.
+  - Vue postérieure (optionnelle) : pelvic drop, valgus genou, asymétrie de charge, oscillation latérale hanche, pronation pied.
+- Construction d'un dataset SFT (60 paires) + DPO (42 triplets) et fine-tuning de MedGemma 4B-it via QLoRA/LoRA sur alpha-server.
+- Interface praticien : rapport biomécanique + protocole de rééducation.
 
 ### Ce que le projet ne couvre pas (hors MVP)
 
-- L'analyse frontale (symétrie gauche/droite, valgus dynamique, drop pelvien) — version ultérieure.
 - La course en extérieur / sur route — hors contexte clinique MVP.
 - La validation clinique formelle du système (études contrôlées, certification médicale).
 - L'intégration dans un dossier médical électronique ou logiciel cabinet.
 - Les pathologies hors liste des 6 MVP.
 - Le déploiement multi-sites ou en environnement hospitalier.
-- La planification automatique des séances de rééducation (voir section Perspectives v2.0).
+- La planification automatique des séances de rééducation (voir section Perspectives).
 
-### Perspectives v2.0 — Planification des séances de rééducation
+### Perspectives — Planification des séances de rééducation
 
-Le protocole ARIA-ft définit déjà pour chaque patient les 3 phases de rééducation, les exercices associés et les durées recommandées. La v2.0 exploitera ces données structurées pour générer automatiquement un calendrier de séances personnalisé et envoyer des rappels au patient (SMS ou email).
-
-Cette fonctionnalité est visible dans l'interface MVP sous forme de bloc verrouillé `[v2.0 🔒]`, permettant au praticien d'en percevoir la valeur sans qu'elle soit opérationnelle. Elle nécessitera en v2.0 une intégration avec un système de messagerie (ex : Twilio, SendGrid) et idéalement une connexion au logiciel agenda du cabinet.
+Le protocole ARIA-ft définit déjà pour chaque patient les 3 phases de rééducation, les exercices associés et les durées recommandées. Une version ultérieure exploitera ces données structurées pour générer automatiquement un calendrier de séances personnalisé et envoyer des rappels au patient (SMS ou email), via une intégration avec un système de messagerie (ex : Twilio, SendGrid) et idéalement une connexion au logiciel agenda du cabinet.
 
 ---
 
@@ -92,16 +88,10 @@ Cette fonctionnalité est visible dans l'interface MVP sous forme de bloc verrou
 ## 6. Cas d'usage principaux (MVP)
 
 **CU-01 — Analyse d'une session sur tapis**
-Le praticien saisit la pathologie du patient et lance une session ARIA. Le coureur court sur le tapis à son allure habituelle pendant 2 à 3 minutes, filmé par la caméra sagittale fixe. Si le patient a connecté son compte Strava, ARIA récupère automatiquement son historique. ARIA analyse la foulée, corrèle les anomalies à la pathologie déclarée et produit un rapport structuré.
+Le praticien saisit la pathologie du patient et lance une session ARIA. Le coureur court sur le tapis à son allure habituelle pendant 2 à 3 minutes, filmé par deux caméras fixes (sagittale et postérieure). La vue postérieure est optionnelle : si elle n'est pas fournie, ARIA fonctionne en mode sagittal seul. ARIA analyse la foulée, corrèle les anomalies à la pathologie déclarée et produit un rapport structuré.
 
 **CU-02 — Génération du protocole de rééducation et export PDF**
-Sur la base de l'analyse biomécanique, de la pathologie déclarée et du profil de chaussure, ARIA génère un protocole de rééducation personnalisé via le LLM ARIA-ft (MedGemma 4B-it fine-tuné SFT + DPO). Le protocole est ancré dans la littérature médicale récente récupérée via PubMed API. Le LLM produit un rapport structuré au format Markdown, immédiatement converti en PDF par WeasyPrint. L'interface NiceGUI affiche la progression de l'analyse en temps réel via WebSocket, puis propose l'export PDF au praticien. Le document est imprimable et archivable dans le dossier patient sans manipulation supplémentaire.
-
-**CU-03 — Suivi de l'évolution du patient**
-À chaque nouvelle session, ARIA compare les métriques avec les sessions précédentes et mesure la progression vers les objectifs biomécaniques définis dans le protocole.
-
-**CU-04 — Alerte équipement**
-ARIA croise le profil de chaussure du patient (récupéré en temps réel via web grounding) avec les anomalies détectées. Si la chaussure aggrave la pathologie (ex : drop élevé + attaque talon + lombalgie), une alerte est générée avec une recommandation de transition vers une chaussure mieux adaptée.
+Sur la base de l'analyse biomécanique et de la pathologie déclarée, ARIA génère un protocole de rééducation personnalisé via le LLM ARIA-ft (MedGemma 4B-it fine-tuné SFT + DPO). Le protocole est ancré dans la littérature médicale récente récupérée via PubMed API. Le LLM produit un rapport structuré au format Markdown, immédiatement converti en PDF par WeasyPrint. L'interface Vue.js affiche la progression de l'analyse en temps réel via WebSocket, puis propose l'export PDF au praticien. Le document est imprimable et archivable dans le dossier patient sans manipulation supplémentaire.
 
 ---
 
@@ -110,9 +100,9 @@ ARIA croise le profil de chaussure du patient (récupéré en temps réel via we
 | Couche                 | Rôle                                                                                  | Technologies                                                                                            |
 | ---------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Couche 0 — Fine-tuning | Construction dataset + SFT + DPO                                                      | MedGemma 4B-it, QLoRA, LoRA, TRL, alpha-server                                                          |
-| Couche 1 — Ingestion   | Traitement vidéo sagittale, extraction frames, floutage RGPD                          | MediaPipe Pose (BlazePose GHUM, 33 keypoints), OpenCV, Python                                           |
-| Couche 2 — Analyse     | Extraction métriques biomécaniques                                                    | MediaPipe landmarks (33 points BlazePose, tracking temporel natif), calculs angulaires                  |
-| Couche 3 — Agents      | Orchestration, RAG médical, web grounding, raisonnement                               | LangGraph (alpha-server), vLLM (alpha-server), ChromaDB, sentence-transformers, Tavily, PubMed API, Strava API |
+| Couche 1 — Ingestion   | Traitement vidéos sagittale + postérieure, extraction frames, floutage RGPD           | MediaPipe Pose (BlazePose GHUM, 33 keypoints), OpenCV, Python                                           |
+| Couche 2 — Analyse     | Extraction métriques biomécaniques sagittales (7) + postérieures optionnelles (5)     | MediaPipe landmarks (33 points BlazePose, tracking temporel natif), calculs angulaires                  |
+| Couche 3 — Agents      | Orchestration, RAG médical, raisonnement                                              | LangGraph (alpha-server), vLLM (alpha-server), ChromaDB, sentence-transformers, PubMed API              |
 | Couche 4 — Outputs     | Interface praticien SPA, rapport Markdown généré par le LLM, export PDF patient       | Vue.js 3 + Vite (frontend SPA), FastAPI (backend REST + WebSocket), WeasyPrint (rendu PDF), Markdown   |
 
 ---
@@ -144,12 +134,11 @@ ARIA croise le profil de chaussure du patient (récupéré en temps réel via we
 ## 10. Critères de succès
 
 - Le pipeline vidéo extrait des métriques biomécaniques cohérentes avec les données de référence MoCap issues de Ferber et al. 2024 (Nature Scientific Data, 1 798 sujets dont blessés, protocole tapis de course).
-- Le modèle ARIA-ft produit des protocoles cliniquement supérieurs au modèle MedGemma 4B-it de base (non fine-tuné) sur un jeu d'évaluation humain (évaluation comparée sur 20 cas).
-- Le système complet (vidéo → rapport + protocole) s'exécute en moins de 60 secondes sur les deux machines.
+- Le système complet (vidéo → rapport + protocole) s'exécute en moins de 120 secondes sur alpha-server.
 - Le prototype est stable et démontrable en conditions de soutenance.
 - Le système génère un rapport PDF complet (métriques + protocole + sources) directement imprimable et archivable par le praticien.
 - Les recommandations générées sont intelligibles et directement exploitables par un praticien non expert en IA.
 
 ---
 
-*ARIA MVP v2.0 — Contexte : Cabinet médical / Tapis de course / Plan sagittal — SFT + DPO — Avril 2026*
+*ARIA MVP — Contexte : Cabinet médical / Tapis de course / Plan sagittal — SFT + DPO — Avril 2026*

@@ -34,14 +34,14 @@ Exemple : Le cabinet opère en mode mono-praticien (MVP), avec une volumétrie d
 #### Niveau de Maturité IA / MLOps
 
 - Maturité IA initiale : faible — aucun pipeline ML en production avant ce projet.
-- Infrastructure : deux machines hétérogènes (Mac M3 pour le contrôle, PC RTX 4060 Ti pour l'inférence LLM).
+- Infrastructure : un unique serveur Linux (alpha-server, GPU NVIDIA) — architecture mono-serveur.
 - Approche MLOps adoptée : embryonnaire — versionning Git multi-repos, Makefile pour l'orchestration, pytest pour les tests.
 - Objectif fin PFE : atteindre le niveau IHM simple, pipeline automatisé, monitoring de base, reproductibilité garantie.
 
 #### Contraintes Technologiques et Réglementaires
 
 - RGPD Art. 9 : données de santé traitées exclusivement en local — aucun transfert cloud.
-- Contrainte VRAM : RTX 4060 Ti 16 GB — impose QLoRA 4-bit pour le fine-tuning et float16 pour le serving.
+- Contrainte VRAM : alpha-server GPU 16 GB — impose QLoRA 4-bit pour le fine-tuning et float16 pour le serving.
 - Latence cible : pipeline complet < 60 secondes pour une session de consultation.
 - Interopérabilité : API OpenAI-compatible (vLLM) pour garantir la substituabilité du modèle LLM.
 
@@ -89,15 +89,15 @@ En l'absence de solution préexistante dans le cabinet, ARIA constitue une solut
 
 | Étape | Composant | Machine | Technologie |
 |---|---|---|---|
-| 1 — Ingestion vidéo | frame_extractor.py | Mac M3 | OpenCV / FFmpeg |
-| 2 — Extraction keypoints | mediapipe_service.py | Mac M3 | MediaPipe Pose Tasks API |
-| 3 — Calcul métriques | metrics_calculator.py | Mac M3 | Python + NumPy (11 métriques) |
-| 4 — Orchestration | LangGraph StateGraph | Mac M3 | LangGraph + FastAPI |
-| 5 — Diagnostic LLM | diagnosis_agent.py | RTX 4060 Ti | vLLM + Outlines (guided JSON) |
-| 6 — Retrieval PubMed | rag_agent.py + ChromaDB | Mac M3 | ChromaDB + multilingual-e5-base |
-| 7 — Rapport LLM | report_agent.py | RTX 4060 Ti | vLLM + MedGemma 4B-it |
-| 8 — Export PDF | WeasyPrint | Mac M3 | WeasyPrint + HTML template |
-| 9 — Interface | aria-frontend | Mac M3 | Vue.js 3 + Vite + WebSocket |
+| 1 — Ingestion vidéo | frame_extractor.py | alpha-server | OpenCV / FFmpeg |
+| 2 — Extraction keypoints | mediapipe_service.py | alpha-server | MediaPipe Pose Tasks API |
+| 3 — Calcul métriques | metrics_calculator.py | alpha-server | Python + NumPy (11 métriques) |
+| 4 — Orchestration | LangGraph StateGraph | alpha-server | LangGraph + FastAPI |
+| 5 — Diagnostic LLM | diagnosis_agent.py | alpha-server | vLLM + xgrammar (guided JSON) |
+| 6 — Retrieval PubMed | rag_agent.py + ChromaDB | alpha-server | ChromaDB + multilingual-e5-base |
+| 7 — Rapport LLM | report_agent.py | alpha-server | vLLM + MedGemma 4B-it |
+| 8 — Export PDF | WeasyPrint | alpha-server | WeasyPrint + HTML template |
+| 9 — Interface | aria_front | alpha-server | Vue.js 3 + Vite + WebSocket |
 
 #### Métriques Biomécaniques Extraites
 
@@ -152,7 +152,7 @@ En l'absence de solution préexistante dans le cabinet, ARIA constitue une solut
 | BioMistral 7B | 7B | Biomédical | ~14 GB f16 | Candidat — pas de IT |
 | **MedGemma 4B-it** | **4B** | **Médical + multimodal** | **~8 GB f16** | **RETENU** |
 
-MedGemma 4B-it est retenu pour trois raisons : (1) spécialisation médicale native (entraîné par Google sur des données cliniques), (2) VRAM compatible RTX 4060 Ti en float16, (3) architecture Gemma 3 supportant le guided decoding Outlines pour la garantie JSON.
+MedGemma 4B-it est retenu pour trois raisons : (1) spécialisation médicale native (entraîné par Google sur des données cliniques), (2) VRAM compatible avec alpha-server en float16, (3) architecture Gemma 3 supportant le guided decoding xgrammar pour la garantie JSON.
 
 #### Comparatif d'Approches — Extraction Pose
 
@@ -163,20 +163,20 @@ MedGemma 4B-it est retenu pour trois raisons : (1) spécialisation médicale nat
 | **MediaPipe Pose Tasks** | **Élevée** | **Rapide (CPU)** | **Faible** | **RETENU** |
 | MMPose | Très élevée | Rapide | Très lourde | Hors périmètre |
 
-MediaPipe Pose Tasks API (BlazePose GHUM, 33 keypoints) est retenu : fonctionne en temps réel sur CPU M3 sans GPU dédié, API Python officielle stable, et 33 landmarks suffisants pour les 11 métriques biomécaniques ciblées.
+MediaPipe Pose Tasks API (BlazePose GHUM, 33 keypoints) est retenu : fonctionne en temps réel sur CPU sans GPU dédié (alpha-server), API Python officielle stable, et 33 landmarks suffisants pour les 11 métriques biomécaniques ciblées.
 
 #### Schéma d'Architecture Cible
 
 ```
-aria-frontend (Vue.js 3 + Vite + Pinia)   :5173
+aria_front  (Vue.js 3 + Vite + Pinia · nginx)  :3000
          |  REST + WebSocket
-aria_middle (FastAPI + LangGraph)           :8000  [Mac M3]
+aria_middle (FastAPI + LangGraph)              :8000  [alpha-server]
  |-- video_agent     (MediaPipe Pose, 11 métriques)
  |-- diagnosis_agent (LLM appel #1 → DiagnosticLLM JSON)
  |-- rag_agent       (ChromaDB, 292 abstracts PubMed)
  |-- report_agent    (LLM appel #2 → rapport complet)
          |  HTTP POST /v1/chat/completions
-aria_back  (vLLM + MedGemma 4B-it ARIA-ft)  :8001  [RTX 4060 Ti]
+aria_back   (vLLM + MedGemma 4B-it ARIA-ft)   :8001  [alpha-server]
 ```
 
 #### Justification des Choix Technologiques
@@ -184,7 +184,7 @@ aria_back  (vLLM + MedGemma 4B-it ARIA-ft)  :8001  [RTX 4060 Ti]
 | Composant | Technologie Retenue | Justification |
 |---|---|---|
 | Orchestration agents | LangGraph StateGraph | Graphe déterministe, gestion d'état typée (TypedDict), edges conditionnels sur erreur |
-| Serving LLM | vLLM + Outlines | PagedAttention (latence P50 < 3s), guided decoding JSON garanti à 100% |
+| Serving LLM | vLLM + xgrammar | PagedAttention (latence P50 < 3s), guided decoding JSON garanti à 100% |
 | Fine-tuning | TRL + QLoRA NF4 | VRAM-efficient sur 16GB, qualité comparable full fine-tuning (Dettmers 2023) |
 | Alignement | DPO (Rafailov 2023) | Plus stable que RLHF/PPO sur petit dataset (40 triplets), pas de reward model |
 | Vector Store | ChromaDB local | 0€, embarqué, API Python simple, compatible multilingual-e5-base |
@@ -247,7 +247,7 @@ aria_back  (vLLM + MedGemma 4B-it ARIA-ft)  :8001  [RTX 4060 Ti]
 
 | Risque | Probabilité | Impact | Mitigation |
 |---|---|---|---|
-| vLLM indisponible (RTX éteint) | Élevée | Critique | Mock `vllm_client` dans aria_middle pour démo |
+| vLLM indisponible (service arrêté) | Élevée | Critique | Mock `vllm_client` dans aria_middle pour démo |
 | Vidéo hors norme (mauvais angle) | Moyenne | Élevé | Filtres de validation + `inclinaison_tronc=None` si hors [0°,45°] |
 | VRAM insuffisante (training + serving) | Faible | Élevé | Règle : jamais training et serving simultanés |
 | Dérive modèle post-fine-tuning | Moyenne | Moyen | `make benchmark` avant/après — score de cohérence pathologie |
@@ -258,14 +258,14 @@ aria_back  (vLLM + MedGemma 4B-it ARIA-ft)  :8001  [RTX 4060 Ti]
 
 | Poste | Coût MVP (local) | Coût Cloud Équivalent |
 |---|---|---|
-| Inférence LLM (diagnosis + report) | 0€ — RTX 4060 Ti déjà possédé | ~0.04€/session (GPT-4o mini) |
+| Inférence LLM (diagnosis + report) | 0€ — alpha-server GPU déjà disponible | ~0.04€/session (GPT-4o mini) |
 | Embeddings RAG | 0€ — multilingual-e5-base local | ~0.001€/session (OpenAI ada) |
 | Stockage ChromaDB | 0€ — local NVMe | ~5€/mois (Pinecone Starter) |
-| Pipeline vidéo MediaPipe | 0€ — CPU M3 | ~0.02€/min (AWS Rekognition) |
-| Serving API | 0€ — Mac M3 + FastAPI | ~50€/mois (EC2 t3.medium) |
+| Pipeline vidéo MediaPipe | 0€ — CPU alpha-server | ~0.02€/min (AWS Rekognition) |
+| Serving API | 0€ — alpha-server + FastAPI | ~50€/mois (EC2 t3.medium) |
 | **Total estimé par session** | **~0€ variable** | **~0.10€ variable + ~55€ fixe/mois** |
 
-L'architecture 100% locale élimine tout coût d'exploitation variable et garantit la conformité RGPD sans surcoût juridique. Le coût d'investissement est limité au matériel existant (Mac M3 + RTX 4060 Ti).
+L'architecture 100% locale élimine tout coût d'exploitation variable et garantit la conformité RGPD sans surcoût juridique. Le coût d'investissement est limité au matériel existant (alpha-server).
 
 ---
 
@@ -328,20 +328,20 @@ L'architecture 100% locale élimine tout coût d'exploitation variable et garant
 - **MedGemma 4B-it + QLoRA + DPO :** compromis optimal entre spécialisation médicale, contrainte VRAM (16 GB) et qualité d'alignement clinique sur dataset limité (60 paires SFT + 40 triplets DPO).
 - **MediaPipe Pose Tasks API :** migration depuis YOLOv8 justifiée par la suppression de la dépendance GPU pour l'extraction, 33 landmarks suffisants pour les 11 métriques, et API officielle Google stable.
 - **Architecture 100% locale :** conformité RGPD Art. 9 native, coût d'exploitation nul, latence minimale (pas de round-trip réseau pour le LLM).
-- **Guided decoding Outlines :** garantie formelle de JSON valide pour `DiagnosticLLM` — élimine les hallucinations de format sans post-processing fragile.
+- **Guided decoding xgrammar :** garantie formelle de JSON valide pour `DiagnosticLLM` — élimine les hallucinations de format sans post-processing fragile.
 
 #### Perspectives d'Évolution
 
 - **v2.0 — Persistance :** SQLite pour l'historique patient, comparaison de sessions, tendances métriques.
 - **v2.0 — Monitoring :** Prometheus + Grafana pour la dérive du modèle, MLflow pour le tracking des expériences de fine-tuning.
 - **v2.0 — Corpus clinique :** collection ChromaDB `aria_protocols` (JOSPT CPG, Alfredson, McGill, Fredericson) pour enrichir les recommandations d'exercices.
-- **v3.0 — Multi-cabinet :** containerisation Docker, orchestration K8s léger (k3s), API Gateway pour la mutualisation de l'infrastructure RTX.
+- **v3.0 — Multi-cabinet :** containerisation Docker, orchestration K8s léger (k3s), API Gateway pour la mutualisation de l'infrastructure GPU.
 - **v3.0 — Multimodal :** MedGemma 27B ou modèle multimodal pour intégrer directement des frames vidéo dans le prompt diagnostique (end-to-end vision + texte).
 
 #### Prochaines Étapes Immédiates
 
 - Finaliser l'implémentation frontend (specs 001–004 via Gemini + speckit).
-- Déployer aria_back sur RTX : `make setup && make serve && make test`.
+- Déployer aria_back sur alpha-server : `make setup && make serve && make test`.
 - Lancer le fine-tuning SFT puis DPO : `make train-all`.
 - Valider le pipeline complet sans mock : `make test-pipeline` avec vidéo réelle.
 - Préparer la démo jury : script de démonstration avec PAT-2026-042 (SFP, valgus 13.9°).
@@ -354,23 +354,22 @@ L'architecture 100% locale élimine tout coût d'exploitation variable et garant
 
 | Composant | Dépôt GitHub | Description |
 |---|---|---|
-| aria_back | github.com/hellebuyckf/aria_back | Serving vLLM + fine-tuning TRL (RTX 4060 Ti) |
-| aria_middle | github.com/hellebuyckf/aria_middle | Orchestration LangGraph + FastAPI + MediaPipe (Mac M3) |
-| aria-frontend | github.com/hellebuyckf/aria-frontend | Interface Vue.js 3 + WebSocket + Vite |
+| aria_back | github.com/hellebuyckf/aria_back | Serving vLLM + fine-tuning TRL (alpha-server) |
+| aria_middle | github.com/hellebuyckf/aria_middle | Orchestration LangGraph + FastAPI + MediaPipe (alpha-server) |
+| aria_front | github.com/hellebuyckf/aria_front | Interface Vue.js 3 + WebSocket + Vite (alpha-server) |
 
 ---
 
 ### 7.2 Commandes de Démarrage Rapide
 
 ```bash
-# RTX 4060 Ti — Démarrer aria_back
-cd aria_back && make setup && make serve
+# alpha-server — Stack complète via Docker Compose
+make build && make up
 
-# Mac M3 — Démarrer aria_middle
-cd aria_middle && make serve
-
-# Mac M3 — Démarrer le frontend
-cd aria-frontend && npm run dev
+# Ou service par service
+make up-back    # aria_back  (vLLM :8001)
+make up-middle  # aria_middle (FastAPI :8000)
+make up-front   # aria_front  (nginx :3000)
 
 # Test pipeline complet (depuis aria_middle)
 make test-pipeline
